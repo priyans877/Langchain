@@ -1,41 +1,34 @@
-from langchain_openai import ChatOpenAI
-from fastapi import FastAPI
-import uvicorn
-import os
-from pydantic import BaseModel
+import requests
+import streamlit as st
 
-app = FastAPI()
-os.environ["OPENROUTER_API_KEY"] = os.getenv("OPENROUTER_API_KEY")
-# Configure OpenRouter with LangChain
-llm = ChatOpenAI(
-    openai_api_base="https://openrouter.ai/api/v1",
-    openai_api_key=os.getenv("OPENROUTER_API_KEY"),
-    model_name="mistralai/mixtral-8x7b-instruct"  # Example model
-)
+def get_llam_responce(input_text):
+    url = "http://127.0.0.1:8000/llama"
+    payload = {"text": input_text}
+    try:
+        response = requests.post(url, json=payload)
+        response.raise_for_status()  # Raise error for bad HTTP status
+        return response.json().get('content', 'No content returned')
+    except requests.exceptions.RequestException as e:
+        return f"Error: {e}"
 
-class UserInput(BaseModel):
-    text: str
-    model: str = "mistralai/mixtral-8x7b-instruct"  # Default model
+def get_deep_responce(input_text):
+    url = "http://127.0.0.1:8000/deep"
+    payload = {"text": input_text}
+    try:
+        response = requests.post(url, json=payload)
+        response.raise_for_status()
+        return response.json().get('content', 'No content returned')
+    except requests.exceptions.RequestException as e:
+        return f"Error: {e}"
 
+st.title("LangChain using OpenRouter")
+input_text = st.text_input("Enter Topic for generating Essay")
+input_text2 = st.text_input("Enter Topic for generating Poem")
 
-def get_llm(model_name:str):
-    return ChatOpenAI(
-        openai_api_base="https://openrouter.ai/api/v1",
-        openai_api_key=os.getenv("OPENROUTER_API_KEY"),
-        model_name="mistralai/mixtral-8x7b-instruct"
-    )
-    
-    
-@app.get("/test")
-async def test_endpoint():
-    response = llm.invoke("Hello, how are you?")
-    return {"response": response.content}
+if input_text:
+    st.write(get_llam_responce(input_text))
 
-@app.post('/llm_chat')
-async def prompting(user_input:UserInput):
-    llm = get_llm(user_input.model)
-    response = llm.invoke(user_input.text)
-    return {'user_input':user_input.text , "responce" : response.content }
+st.markdown("---------------------------------------")
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="localhost", port=8000)
+if input_text2:
+    st.write(get_deep_responce(input_text2))

@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from langchain_core.runnables import RunnableSequence
 from langserve import add_routes
 import uvicorn
 import os
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
 # Load environment variables
 load_dotenv()
@@ -20,6 +20,11 @@ app = FastAPI(
     description="A simple API Server"
 )
 
+
+class InputData(BaseModel):
+    text: str
+
+
 # Models
 llama = ChatOpenAI( 
     openai_api_key=os.getenv("OPENROUTER_API_KEY"),
@@ -30,27 +35,44 @@ llama = ChatOpenAI(
 deepseek = ChatOpenAI(
     openai_api_key=os.getenv("OPENROUTER_API_KEY"),
     openai_api_base="https://openrouter.ai/api/v1",
-    model="deepseek/deepseek-v3-base:free"  # Using a known free model
+    model="deepseek/deepseek-chat-v3-0324:free"  # Using a known free model
 )
 
 # Prompts
 prompt1 = ChatPromptTemplate.from_template("Write me an essay about {topic} with 100 words")
-prompt2 = ChatPromptTemplate.from_template("Write me a poem about {topic} for a 5-year-old child with 100 words")
+prompt2 = ChatPromptTemplate.from_template("do this{topic}")
 
 
 llma_chain = prompt1 | llama
-deep_chain = prompt3 | deepseek
+deep_chain = prompt2 | deepseek
 # Chains
-@app.get("/llama")
-async def llama_endpoint():
-    return llama.invoke("thristy crow")
 
 
-@app.get("/deepseek")
-async def deep_endpoint():
-    return deep_chain.invoke("thirsty Crow")
+# add_routes(
+#     app,
+#     prompt1 | llama,
+#     path = '/essay',    
+# )
+# add_routes(
+#     app,
+#     prompt2 | deepseek,
+#     path = '/deep',    
+# )
+
+@app.post("/llama")
+async def llama_endpoint(data:InputData):
+    responce = llma_chain.invoke(data.text)
+    print(responce)
+    return responce
+
+@app.post("/deep")
+async def deep_endpoint(data : InputData):
+    print(data.text)
+    responce = deep_chain.invoke(data.text)
+    print(responce)
+    return responce
 
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="localhost", port=8000, log_level="debug")
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="debug")
